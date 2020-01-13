@@ -16,16 +16,11 @@ public class Tester {
     private int range;
     private long seed;
     private int length;
-    private int minExp;
-    private int maxExp;
 
-    public Tester(int testRange, int programLength, long generatorSeed, int minExponent,
-                  int maxExponent) {
+    public Tester(int testRange, int programLength, long generatorSeed) {
         this.range = testRange;
         this.length = programLength;
         this.seed = generatorSeed;
-        this.minExp = minExponent;
-        this.maxExp = maxExponent;
     }
 
     private static final String OUTPUT_DIR = "./out";
@@ -36,7 +31,7 @@ public class Tester {
             throw new RuntimeException("Must specify at least one testing configuration");
         Generator[] generators = new Generator[configs.length];
         for (int i = 0; i < configs.length; i++)
-            generators[i] = new Generator(seed, minExp, maxExp);
+            generators[i] = new Generator(seed);
 
         // Create output directory
         Path outPath = Path.of(OUTPUT_DIR);

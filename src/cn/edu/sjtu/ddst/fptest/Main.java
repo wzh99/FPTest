@@ -4,8 +4,6 @@ public class Main {
 
     private static final long GENERATOR_SEED = 1;
     private static final int PROGRAM_LENGTH = 100;
-    private static final int MIN_EXPONENT = 0;
-    private static final int MAX_EXPONENT = 7;
     private static final int TEST_ROUNDS = 100;
 
     private static final String HOTSPOT_HOME =
@@ -16,8 +14,7 @@ public class Main {
             "C:\\Program Files\\Java\\jre1.6.0";
 
     public static void main(String[] args) {
-        Tester tester = new Tester(Tester.TEST_ALL, PROGRAM_LENGTH, GENERATOR_SEED,
-                MIN_EXPONENT, MAX_EXPONENT);
+        Tester tester = new Tester(Tester.TEST_ALL, PROGRAM_LENGTH, GENERATOR_SEED);
         tester.test(new TestConfig[]{
                 new TestConfig(false, HOTSPOT_HOME, "--release 6",
                         HOTSPOT_HOME, ""),

@@ -30,19 +30,9 @@ public strictfp class Generator {
     );
 
     private Random rng;
-    private int minExp;
-    private int modExp;
 
-    public Generator(long seed, int minExp, int maxExp) {
+    public Generator(long seed) {
         this.rng = new Random(seed);
-        if (minExp < -1023)
-            throw new RuntimeException("Minimum exponent must be no less than -1023");
-        this.minExp = minExp;
-        if (maxExp > 1024)
-            throw new RuntimeException("Maximum exponent must be no more than 1024");
-        if (maxExp <= minExp)
-            throw new RuntimeException("Maximum exponent must be greater than minimum");
-        this.modExp = maxExp - minExp + 1;
     }
 
     public Program generate(int length, int testRange, boolean strict, String name) {
@@ -109,7 +99,6 @@ public strictfp class Generator {
             }
 
             // Ensure this expression produces finite result
-            boolean rndBool = rng.nextBoolean(); // ensure same sequence under any modifier choice
             if (!Double.isFinite(newVal) || newVal == 0) continue; // reject this expression
 
             // Create method
@@ -135,16 +124,10 @@ public strictfp class Generator {
         return program;
     }
 
-    private static final long EXPONENT_MASK = ((1L << 11) - 1) << 52;
-
     private Constant nextConstant() {
         while (true) {
             // Generate random 64 bits
             long bits = rng.nextLong();
-            // Apply modulo to exponent bits
-            long exponent = ((bits & EXPONENT_MASK) >> 52);
-            exponent %= modExp;
-            bits = (bits & ~EXPONENT_MASK) | ((exponent + minExp + 1023) << 52);
             // Create double from long bits
             double value = Double.longBitsToDouble(bits);
             // Validate generated double
