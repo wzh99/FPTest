@@ -2,7 +2,9 @@ package cn.edu.sjtu.ddst.fptest;
 
 import java.io.*;
 import java.nio.file.Path;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Date;
 
 public class Tester {
 
@@ -26,7 +28,7 @@ public class Tester {
         this.maxExp = maxExponent;
     }
 
-    private static final String OUTPUT_PATH = "./out";
+    private static final String OUTPUT_DIR = "./out";
 
     public void test(TestConfig[] configs, int rounds) {
         // Initialize generator list
@@ -36,9 +38,36 @@ public class Tester {
         for (int i = 0; i < configs.length; i++)
             generators[i] = new Generator(seed, minExp, maxExp);
 
+        // Create output directory
+        Path outPath = Path.of(OUTPUT_DIR);
+        if (!outPath.toFile().exists()) {
+            boolean success = outPath.toFile().mkdir();
+            if (!success)
+                throw new RuntimeException("Cannot create output directory " + OUTPUT_DIR);
+        }
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
+        Path testDir = outPath.resolve(dateFormat.format(new Date()));
+        if (!testDir.toFile().exists()) {
+            boolean success = testDir.toFile().mkdir();
+            if (!success)
+                throw new RuntimeException("Cannot create test directory " + testDir.toString());
+        }
+
+        // Write test log
+        FileWriter writer;
+        Path logPath = testDir.resolve("test.log");
+        try {
+            writer = new FileWriter(logPath.toString());
+            for (TestConfig config : configs)
+                writer.write(config.toString() + '\n');
+            writer.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Cannot write test configurations");
+        }
+
         // Test for specified number of rounds
-        int eqCount = 0;
-        System.out.println();
+        int diffCount = 0;
         for (int i = 0; i < rounds; i++) {
             System.out.printf("\rProgress: %d/%d\r", i, rounds);
 
@@ -46,11 +75,10 @@ public class Tester {
             String[] outputs = new String[configs.length];
 
             // Generate and run according to specified configuration
-            Program sampleProgram = null;
             for (int j = 0; j < configs.length; j++) {
-                Program program = generators[j].generate(length, range, configs[j].scope);
-                if (j == 0) sampleProgram = program;
-                String result = runOneProgram(program, configs[j]);
+                String name = String.format("Test%dConfig%d", i, j);
+                Program program = generators[j].generate(length, range, configs[j].strict, name);
+                String result = runOneProgram(program, testDir, configs[j]);
                 if (result.isEmpty())
                     throw new RuntimeException("Empty output from test program");
                 outputs[j] = result;
@@ -60,39 +88,37 @@ public class Tester {
             boolean equals = true;
             for (int j = 1; j < configs.length; j++)
                 equals &= outputs[j].equals(outputs[0]);
-            if (equals)
-                eqCount++;
-            else {
+            if (!equals) {
                 // Print difference in long bits
+                diffCount++;
                 double[] fpRes = new double[configs.length];
                 for (int j = 0; j < configs.length; j++)
                     fpRes[j] = Double.longBitsToDouble(Long.parseUnsignedLong(outputs[j], 16));
-                System.out.printf("Difference found: %s (%s)\n", Arrays.toString(outputs),
-                        Arrays.toString(fpRes));
-
-                // Write program with difference to file
-                String srcPath = Path.of(OUTPUT_PATH, String.format("Test$%d.java", i)).toString();
+                String diffStr = String.format("Difference detected in round %d: %s (%s)\n",
+                        i, Arrays.toString(outputs), Arrays.toString(fpRes));
+                System.out.print(diffStr);
                 try {
-                    FileWriter writer = new FileWriter(srcPath);
-                    CodePrinter printer = new CodePrinter(writer);
-                    printer.print(sampleProgram);
-                    writer.close();
-                    System.out.println("Test program saved to " + srcPath);
+                    writer.write(diffStr);
+                    writer.flush();
                 } catch (IOException e) {
+                    System.err.println("Cannot write to log file " + logPath.toString());
                     e.printStackTrace();
-                    throw new RuntimeException("Failed to create file " + srcPath);
                 }
-
             }
         }
 
-        System.out.printf("Result: %d/%d\n", eqCount, rounds);
+        System.out.printf("Count: %d/%d\n", diffCount, rounds);
+        try {
+            writer.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
-    private static String runOneProgram(Program program, TestConfig config) {
+    private static String runOneProgram(Program program, Path testDir, TestConfig config) {
         // Write source code to file
-        String srcPath = Path.of(OUTPUT_PATH, "Test.java").toString();
-        File srcFile = new File(srcPath);
+        String srcName = program.name + ".java";
+        File srcFile = testDir.resolve(srcName).toFile();
         try {
             FileWriter writer = new FileWriter(srcFile);
             CodePrinter printer = new CodePrinter(writer);
@@ -107,12 +133,12 @@ public class Tester {
         Path compilerPath = Path.of(config.jdkHome, "bin", "javac");
         try {
             String command = String.format("%s %s %s", compilerPath.toString(), config.compileOptions,
-                    "Test.java");
-            Process proc = Runtime.getRuntime().exec(command, null, new File(OUTPUT_PATH));
+                    srcName);
+            Process proc = Runtime.getRuntime().exec(command, null, testDir.toFile());
             BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream()));
             String line;
             while ((line = reader.readLine()) != null)
-                System.err.println(line);
+                System.out.println(line);
         } catch (IOException e) {
             e.printStackTrace();
             throw new RuntimeException("Failed to compile source file.");
@@ -123,8 +149,8 @@ public class Tester {
         StringBuilder output = new StringBuilder();
         try {
             String command = String.format("%s %s %s", jvmPath.toString(), config.runOptions,
-                    "Test");
-            Process proc = Runtime.getRuntime().exec(command, null, new File(OUTPUT_PATH));
+                    program.name);
+            Process proc = Runtime.getRuntime().exec(command, null, testDir.toFile());
             BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream()));
             String line;
             while ((line = reader.readLine()) != null)
@@ -135,9 +161,7 @@ public class Tester {
         }
 
         // Clean up
-        if (!srcFile.delete())
-            System.err.println("Failed to delete source file");
-        if (!new File(Path.of(OUTPUT_PATH, "Test.class").toString()).delete())
+        if (!testDir.resolve(program.name + ".class").toFile().delete())
             System.err.println("Failed to delete class file");
 
         return output.toString();

@@ -1,4 +1,4 @@
-package cn.edu.sjtu.ddst.fptest.grammar;
+package cn.edu.sjtu.ddst.fptest.syntax;
 
 public class BinaryOperation extends Expression {
 

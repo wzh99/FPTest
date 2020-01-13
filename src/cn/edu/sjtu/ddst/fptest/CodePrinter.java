@@ -1,18 +1,19 @@
 package cn.edu.sjtu.ddst.fptest;
 
-import cn.edu.sjtu.ddst.fptest.grammar.*;
+import cn.edu.sjtu.ddst.fptest.syntax.*;
 
 import java.io.*;
 import java.util.ArrayList;
 
 public class CodePrinter {
 
+    private static final String nameTag = "@NAME";
     private static final String strictTag = "@STRICTFP";
     private static final String statementTag = "@STATEMENTS";
     private static final String methodTag = "@METHODS";
 
     private static final String template =
-            "public " + strictTag + "class Test {\n" +
+            "public " + strictTag + "class " + nameTag + " {\n" +
             "\tpublic static void main(String[] args) {\n" +
             statementTag +
             "\t}\n\n" +
@@ -27,7 +28,8 @@ public class CodePrinter {
 
     public void print(Program program) {
         // Create program string from template
-        String outStr = template.replace(strictTag, program.strict ? "strictfp " : "");
+        String outStr = template.replace(nameTag, program.name)
+                .replace(strictTag, program.strict ? "strictfp " : "");
 
         // Print statements
         StringBuilder builder = new StringBuilder();
@@ -62,9 +64,8 @@ public class CodePrinter {
 
     private String visit(Method method) {
         return String.format(
-                "\tprivate static %sdouble %s(double %s) {\n\t\treturn %s;\n\t}\n\n",
-                method.isStrict() ? "strictfp " : "", method.getName(), visit(method.getParameter()),
-                visit(method.getExpression()));
+                "\tprivate static double %s(double %s) {\n\t\treturn %s;\n\t}\n\n",
+                method.getName(), visit(method.getParameter()), visit(method.getExpression()));
     }
 
     private String visit(Expression expr) {

@@ -1,4 +1,4 @@
-package cn.edu.sjtu.ddst.fptest.grammar;
+package cn.edu.sjtu.ddst.fptest.syntax;
 
 import java.util.ArrayList;
 import java.util.Arrays;
