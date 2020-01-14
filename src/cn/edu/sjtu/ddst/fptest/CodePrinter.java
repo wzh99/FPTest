@@ -80,7 +80,7 @@ public class CodePrinter {
         return "";
     }
 
-    private String visit(Constant constant) { return Double.toString(constant.getValue()); }
+    private String visit(Constant constant) { return constant.getLiteral(); }
 
     private String visit(Variable var) { return var.getName(); }
 

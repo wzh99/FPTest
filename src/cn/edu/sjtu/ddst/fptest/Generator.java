@@ -11,7 +11,7 @@ import java.util.function.BinaryOperator;
 public strictfp class Generator {
 
     // Float operators
-    private static final List<String> binaryOpList = List.of("+","-","*","/");
+    private static final List<String> binaryOpList = List.of("+", "-", "*", "/");
     private static final Map<String, BinaryOperator<Double>> binaryOpMap = Map.of(
             "+", Double::sum,
             "-", (Double a, Double b) -> a - b,
@@ -50,6 +50,7 @@ public strictfp class Generator {
         Constant initConst = nextConstant();
         double lastVal = initConst.getValue(); // estimate calculated value in strict mode
         program.statements.add(new Assignment(lastVar, initConst));
+        program.statements.add(createPrintStatement(lastVar));
 
         // Create testing statements and methods
         while (nMethod < length) {
@@ -67,39 +68,35 @@ public strictfp class Generator {
             Variable param = new Variable("x");
             Constant nextConst = nextConstant();
             Expression expr;
-            double newVal = Double.POSITIVE_INFINITY;
-            if (target == Tester.TEST_OPERATOR) { // create operator testing method
-                int opChoice = rng.nextInt(binaryOpList.size());
-                String op = binaryOpList.get(opChoice);
-                newVal = binaryOpMap.get(op).apply(lastVal, nextConst.getValue());
-                expr = new BinaryOperation(op, param, nextConst);
-            } else { // create math function testing method
-                int funcChoice = rng.nextInt(unaryFuncList.size() + binaryFuncList.size());
-                if (funcChoice < unaryFuncList.size()) {
-                    String func = unaryFuncList.get(funcChoice);
-                    try {
+            double newVal;
+            try {
+                if (target == Tester.TEST_OPERATOR) { // create operator testing method
+                    int opChoice = rng.nextInt(binaryOpList.size());
+                    String op = binaryOpList.get(opChoice);
+                    newVal = binaryOpMap.get(op).apply(lastVal, nextConst.getValue());
+                    expr = new BinaryOperation(op, param, nextConst);
+                } else { // create math function testing method
+                    int funcChoice = rng.nextInt(unaryFuncList.size() + binaryFuncList.size());
+                    if (funcChoice < unaryFuncList.size()) {
+                        String func = unaryFuncList.get(funcChoice);
                         newVal = (double) Math.class.getMethod(func, double.class)
                                 .invoke(null, lastVal);
-                    } catch (NoSuchMethodException | IllegalAccessException |
-                            InvocationTargetException e) {
-                        e.printStackTrace();
-                    }
-                    expr = new MethodCall("Math." + func, param);
-                } else {
-                    String func = binaryFuncList.get(funcChoice - unaryFuncList.size());
-                    try {
+                        expr = new MethodCall("Math." + func, param);
+                    } else {
+                        String func = binaryFuncList.get(funcChoice - unaryFuncList.size());
                         newVal = (double) Math.class.getMethod(func, double.class, double.class)
                                 .invoke(null, lastVal, nextConst.getValue());
-                    } catch (IllegalAccessException | InvocationTargetException
-                            | NoSuchMethodException e) {
-                        e.printStackTrace();
+                        expr = new MethodCall("Math." + func, param, nextConst);
                     }
-                    expr = new MethodCall("Math." + func, param, nextConst);
                 }
+            } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+                e.printStackTrace();
+                continue;
             }
 
-            // Ensure this expression produces finite result
-            if (!Double.isFinite(newVal) || newVal == 0) continue; // reject this expression
+            // Validate the estimated value
+            if (!Double.isFinite(newVal) || newVal == 0) continue;
+            if (newVal == lastVal || newVal == nextConst.getValue()) continue;
 
             // Create method
             Method method = new Method(String.format("m%d", nMethod++), param, expr);
@@ -109,30 +106,51 @@ public strictfp class Generator {
             Variable newVar = new Variable(String.format("t%d", nVar++));
             program.statements.add(new Assignment(newVar, new MethodCall(method.getName(), lastVar)));
 
+            // Print result of this step
+            program.statements.add(createPrintStatement(newVar));
+
             // Update variable and its estimate
             lastVar = newVar;
             lastVal = newVal;
         }
 
-        // Print final variable
-        program.statements.add(
-                new MethodCall("System.out.println",
-                new MethodCall("Long.toHexString",
-                new MethodCall("Double.doubleToRawLongBits", lastVar)))
-        );
-
         return program;
     }
 
+    private static MethodCall createPrintStatement(Variable var) {
+        return new MethodCall("System.out.println",
+                new MethodCall("Long.toHexString",
+                        new MethodCall("Double.doubleToRawLongBits", var)));
+    }
+
+    private static final int MIN_DIGITS = 2;
+    private static final int MAX_DIGITS = 16;
+    private static final int MIN_EXPONENT = -308;
+    private static final int MAX_EXPONENT = 308;
+
     private Constant nextConstant() {
         while (true) {
-            // Generate random 64 bits
-            long bits = rng.nextLong();
-            // Create double from long bits
-            double value = Double.longBitsToDouble(bits);
-            // Validate generated double
-            if (Double.isFinite(value) && value != 0)
-                return new Constant(value);
+            // Generate mantissa and sign
+            String mantissa = Long.toString(rng.nextLong());
+            int digits = rng.nextInt(MAX_DIGITS - MIN_DIGITS) + MIN_DIGITS;
+            if (mantissa.startsWith("-")) { // negative
+                StringBuilder builder = new StringBuilder(mantissa.substring(0, digits + 1));
+                builder.insert(2, '.');
+                mantissa = builder.toString();
+            } else { // positive
+                StringBuilder builder = new StringBuilder(mantissa.substring(0, digits));
+                builder.insert(1, '.');
+                mantissa = builder.toString();
+            }
+
+            // Generate exponent
+            int exponent = rng.nextInt(MAX_EXPONENT - MIN_EXPONENT) + MIN_EXPONENT;
+
+            // Assemble the value
+            String literal = String.format("%sE%d", mantissa, exponent);
+            Constant value = new Constant(literal);
+            if (Double.isFinite(value.getValue()) && value.getValue() != 0)
+                return value;
         }
     }
 }
