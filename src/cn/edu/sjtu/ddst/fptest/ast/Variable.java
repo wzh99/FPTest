@@ -1,4 +1,4 @@
-package cn.edu.sjtu.ddst.fptest.syntax;
+package cn.edu.sjtu.ddst.fptest.ast;
 
 public class Variable extends Expression {
 

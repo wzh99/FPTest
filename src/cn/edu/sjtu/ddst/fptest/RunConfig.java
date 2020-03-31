@@ -1,14 +1,11 @@
 package cn.edu.sjtu.ddst.fptest;
 
-public class TestConfig {
+public class RunConfig {
 
-    boolean strict;
     String jdkHome, compileOptions;
     String jreHome, runOptions;
 
-    public TestConfig(boolean useStrict, String jdkHome, String compileOptions,
-                      String jreHome, String runOptions) {
-        this.strict = useStrict;
+    public RunConfig(String jdkHome, String compileOptions, String jreHome, String runOptions) {
         this.jdkHome = jdkHome;
         this.compileOptions = compileOptions;
         this.jreHome = jreHome;
@@ -17,7 +14,7 @@ public class TestConfig {
 
     @Override
     public String toString() {
-        return "TestConfig{" +
+        return "RunConfig{" +
                 "jdkHome='" + jdkHome + '\'' +
                 ", compileOptions='" + compileOptions + '\'' +
                 ", jreHome='" + jreHome + '\'' +

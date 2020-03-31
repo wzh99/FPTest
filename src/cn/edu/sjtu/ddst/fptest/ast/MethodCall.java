@@ -1,4 +1,4 @@
-package cn.edu.sjtu.ddst.fptest.syntax;
+package cn.edu.sjtu.ddst.fptest.ast;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -15,7 +15,7 @@ public class MethodCall extends Expression {
 
     public String getMethod() { return method; }
 
-    public ArrayList<Expression> getArguments() { return args; }
+    public ArrayList<Expression> getArgs() { return args; }
 
     @Override
     public String toString() {

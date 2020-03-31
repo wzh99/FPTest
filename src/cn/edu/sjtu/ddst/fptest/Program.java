@@ -1,7 +1,7 @@
 package cn.edu.sjtu.ddst.fptest;
 
-import cn.edu.sjtu.ddst.fptest.syntax.Method;
-import cn.edu.sjtu.ddst.fptest.syntax.Statement;
+import cn.edu.sjtu.ddst.fptest.ast.Method;
+import cn.edu.sjtu.ddst.fptest.ast.Statement;
 
 import java.util.ArrayList;
 

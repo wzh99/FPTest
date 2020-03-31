@@ -1,4 +1,4 @@
-package cn.edu.sjtu.ddst.fptest.syntax;
+package cn.edu.sjtu.ddst.fptest.ast;
 
 public class Method {
 
@@ -14,9 +14,9 @@ public class Method {
 
     public String getName() { return name; }
 
-    public Variable getParameter() { return param; }
+    public Variable getParam() { return param; }
 
-    public Expression getExpression() { return expr; }
+    public Expression getExpr() { return expr; }
 
     @Override
     public String toString() {
